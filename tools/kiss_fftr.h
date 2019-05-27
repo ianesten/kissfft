@@ -27,11 +27,16 @@ typedef struct kiss_fftr_state *kiss_fftr_cfg;
 
 
 kiss_fftr_cfg kiss_fftr_alloc(int nfft,int inverse_fft,void * mem, size_t * lenmem);
+kiss_fftr_cfg kiss_fftr_alloc_with_twiddles(int nfft, int inverse_fft, kiss_fft_cpx* super_twiddles,
+                                            kiss_fft_cpx* substate_twiddles, void * mem, size_t * lenmem);
 /*
  nfft must be even
 
  If you don't care to allocate space, use mem = lenmem = NULL 
 */
+void kiss_fftr_get_twiddles(int nfft, int inverse_fft,
+                            kiss_fft_cpx* super_twiddles, size_t* super_twiddles_lenmem,
+                            kiss_fft_cpx* substate_twiddles, size_t* substate_twiddles_lenmem);
 
 
 void kiss_fftr(kiss_fftr_cfg cfg,const kiss_fft_scalar *timedata,kiss_fft_cpx *freqdata);

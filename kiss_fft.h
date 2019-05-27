@@ -88,6 +88,24 @@ typedef struct kiss_fft_state* kiss_fft_cfg;
 
 kiss_fft_cfg kiss_fft_alloc(int nfft,int inverse_fft,void * mem,size_t * lenmem); 
 
+/* 
+ * kiss_fft_alloc_with_twiddles
+ *
+ * Same as above, but passing in an array of the twiddle factors. This array is checked
+ * to make sure it matches the expected twiddle factors that would have been computed.
+ * */
+
+kiss_fft_cfg kiss_fft_alloc_with_twiddles(int nfft, int inverse_fft, kiss_fft_cpx* twiddles, void * mem, size_t * lenmem);
+
+/*
+ * kiss_fft_alloc_with_twiddles
+ *
+ * get the ith twiddle factor.
+ * */
+
+void kiss_fft_get_twiddles(int nfft, int inverse_fft,
+                           kiss_fft_cpx* twiddles, size_t* twiddles_lenmem);
+
 /*
  * kiss_fft(cfg,in_out_buf)
  *

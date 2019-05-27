@@ -8,6 +8,7 @@
 
 
 #include "_kiss_fft_guts.h"
+#include <assert.h>
 /* The guts header contains all the multiplication and addition macros that are defined for
  fixed or floating point complex numbers.  It also delares the kf_ internal functions.
  */
@@ -323,6 +324,17 @@ void kf_factor(int n,int * facbuf)
     } while (n > 1);
 }
 
+kiss_fft_cpx kiss_fft_get_twiddle(int i, int nfft, int inverse)
+{
+    kiss_fft_cpx twiddle;
+    const double pi=3.141592653589793238462643383279502884197169399375105820974944;
+    double phase = -2*pi*i / nfft;
+    if (inverse)
+        phase *= -1;
+    kf_cexp(&twiddle, phase);
+    return twiddle;
+}
+
 /*
  *
  * User-callable function to allocate all necessary storage space for the fft.
@@ -334,7 +346,7 @@ kiss_fft_cfg kiss_fft_alloc(int nfft,int inverse_fft,void * mem,size_t * lenmem 
 {
     kiss_fft_cfg st=NULL;
     size_t memneeded = sizeof(struct kiss_fft_state)
-        + sizeof(kiss_fft_cpx)*(nfft-1); /* twiddle factors*/
+        + sizeof(kiss_fft_cpx)*nfft; /* twiddle factors*/
 
     if ( lenmem==NULL ) {
         st = ( kiss_fft_cfg)KISS_FFT_MALLOC( memneeded );
@@ -347,18 +359,61 @@ kiss_fft_cfg kiss_fft_alloc(int nfft,int inverse_fft,void * mem,size_t * lenmem 
         int i;
         st->nfft=nfft;
         st->inverse = inverse_fft;
+        st->twiddles = (kiss_fft_cpx*)(st + sizeof(struct kiss_fft_state));
 
         for (i=0;i<nfft;++i) {
-            const double pi=3.141592653589793238462643383279502884197169399375105820974944;
-            double phase = -2*pi*i / nfft;
-            if (st->inverse)
-                phase *= -1;
-            kf_cexp(st->twiddles+i, phase );
+            st->twiddles[i] = kiss_fft_get_twiddle(i, nfft, st->inverse);
         }
 
         kf_factor(nfft,st->factors);
     }
     return st;
+}
+
+
+kiss_fft_cfg kiss_fft_alloc_with_twiddles(int nfft, int inverse_fft, kiss_fft_cpx* twiddles, void * mem, size_t * lenmem)
+{
+    kiss_fft_cfg st=NULL;
+    size_t memneeded = sizeof(struct kiss_fft_state);
+
+    if ( lenmem==NULL ) {
+        st = ( kiss_fft_cfg)KISS_FFT_MALLOC( memneeded );
+    }else{
+        if (mem != NULL && *lenmem >= memneeded)
+            st = (kiss_fft_cfg)mem;
+        *lenmem = memneeded;
+    }
+    if (st) {
+        int i;
+        st->nfft=nfft;
+        st->inverse = inverse_fft;
+        st->twiddles = twiddles;
+
+        for (i=0;i<nfft;++i) {
+			kiss_fft_cpx a = kiss_fft_get_twiddle(i, nfft, st->inverse);
+			kiss_fft_cpx b = st->twiddles[i];
+            assert(kf_cpx_equal(a, b));
+        }
+
+        kf_factor(nfft,st->factors);
+    }
+    return st;
+}
+
+
+void kiss_fft_get_twiddles(int nfft, int inverse_fft,
+                           kiss_fft_cpx* twiddles, size_t* twiddles_lenmem)
+{
+    if(NULL == twiddles_lenmem)
+        return;
+    if(NULL != twiddles)
+    {
+        int i;
+        for (i = 0; i < nfft; ++i)
+            twiddles[i] = kiss_fft_get_twiddle(i, nfft, inverse_fft);
+    }
+    else if(twiddles_lenmem)
+        *twiddles_lenmem = sizeof(kiss_fft_cpx) * nfft;
 }
 
 

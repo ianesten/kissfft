@@ -8,6 +8,7 @@
 
 #include "kiss_fftr.h"
 #include "_kiss_fft_guts.h"
+#include <assert.h>
 
 struct kiss_fftr_state{
     kiss_fft_cfg substate;
@@ -17,6 +18,17 @@ struct kiss_fftr_state{
     void * pad;
 #endif
 };
+
+kiss_fft_cpx kiss_fft_get_super_twiddle(int i, int nfft, int inverse)
+{
+    kiss_fft_cpx super_twiddle;
+    double phase =
+        -3.14159265358979323846264338327 * ((double) (i+1) / nfft + .5);
+    if (inverse)
+        phase *= -1;
+    kf_cexp(&super_twiddle, phase);
+    return super_twiddle;
+}
 
 kiss_fftr_cfg kiss_fftr_alloc(int nfft,int inverse_fft,void * mem,size_t * lenmem)
 {
@@ -49,13 +61,64 @@ kiss_fftr_cfg kiss_fftr_alloc(int nfft,int inverse_fft,void * mem,size_t * lenme
     kiss_fft_alloc(nfft, inverse_fft, st->substate, &subsize);
 
     for (i = 0; i < nfft/2; ++i) {
-        double phase =
-            -3.14159265358979323846264338327 * ((double) (i+1) / nfft + .5);
-        if (inverse_fft)
-            phase *= -1;
-        kf_cexp (st->super_twiddles+i,phase);
+        st->super_twiddles[i] = kiss_fft_get_super_twiddle(i, nfft, inverse_fft);
     }
     return st;
+}
+
+kiss_fftr_cfg kiss_fftr_alloc_with_twiddles(int nfft, int inverse_fft, kiss_fft_cpx* super_twiddles,
+                                            kiss_fft_cpx* substate_twiddles, void * mem, size_t * lenmem)
+{
+    int i;
+    kiss_fftr_cfg st = NULL;
+    size_t subsize = 0, memneeded;
+
+    if (nfft & 1) {
+        fprintf(stderr,"Real FFT optimization must be even.\n");
+        return NULL;
+    }
+    nfft >>= 1;
+
+    kiss_fft_alloc (nfft, inverse_fft, NULL, &subsize);
+    memneeded = sizeof(struct kiss_fftr_state) + subsize + sizeof(kiss_fft_cpx) * nfft;
+
+    if (lenmem == NULL) {
+        st = (kiss_fftr_cfg) KISS_FFT_MALLOC (memneeded);
+    } else {
+        if (*lenmem >= memneeded)
+            st = (kiss_fftr_cfg) mem;
+        *lenmem = memneeded;
+    }
+    if (!st)
+        return NULL;
+
+    st->substate = (kiss_fft_cfg) (st + 1); /*just beyond kiss_fftr_state struct */
+    st->tmpbuf = (kiss_fft_cpx *) (((char *) st->substate) + subsize);
+    st->super_twiddles = super_twiddles;
+    kiss_fft_alloc_with_twiddles(nfft, inverse_fft, substate_twiddles, st->substate, &subsize);
+
+    for (i = 0; i < nfft/2; ++i) {
+        assert(kf_cpx_equal(kiss_fft_get_super_twiddle(i, nfft, inverse_fft), st->super_twiddles[i]));
+    }    
+    return st;
+}
+
+void kiss_fftr_get_twiddles(int nfft, int inverse_fft,
+                            kiss_fft_cpx* super_twiddles, size_t* super_twiddles_lenmem,
+                            kiss_fft_cpx* substate_twiddles, size_t* substate_twiddles_lenmem)
+{
+    kiss_fft_get_twiddles(nfft, inverse_fft, substate_twiddles, substate_twiddles_lenmem);
+    if(NULL == super_twiddles_lenmem)
+        return;
+    nfft >>= 1;
+    if(NULL != super_twiddles)
+    {
+        int i;
+        for (i = 0; i < nfft/2; ++i)
+            super_twiddles[i] = kiss_fft_get_super_twiddle(i, nfft, inverse_fft);
+    }
+    else if(super_twiddles_lenmem)
+        *super_twiddles_lenmem = sizeof(kiss_fft_cpx) * nfft / 2;
 }
 
 void kiss_fftr(kiss_fftr_cfg st,const kiss_fft_scalar *timedata,kiss_fft_cpx *freqdata)

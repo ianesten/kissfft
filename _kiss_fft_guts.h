@@ -23,7 +23,7 @@ struct kiss_fft_state{
     int nfft;
     int inverse;
     int factors[2*MAXFACTORS];
-    kiss_fft_cpx twiddles[1];
+    kiss_fft_cpx* twiddles;
 };
 
 /*
@@ -134,10 +134,13 @@ struct kiss_fft_state{
 #endif
 
 #define  kf_cexp(x,phase) \
-	do{ \
-		(x)->r = KISS_FFT_COS(phase);\
-		(x)->i = KISS_FFT_SIN(phase);\
-	}while(0)
+  do{ \
+    (x)->r = KISS_FFT_COS(phase);\
+    (x)->i = KISS_FFT_SIN(phase);\
+  }while(0)
+
+#define  kf_cpx_equal(a,b) \
+    ((a.r == b.r) && (a.i == b.i))
 
 
 /* a debugging function */
