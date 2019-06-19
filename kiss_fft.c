@@ -21,7 +21,7 @@ static void kf_bfly2(
         )
 {
     kiss_fft_cpx * Fout2;
-    kiss_fft_cpx * tw1 = st->twiddles;
+    const kiss_fft_cpx * tw1 = st->twiddles;
     kiss_fft_cpx t;
     Fout2 = Fout + m;
     do{
@@ -43,7 +43,7 @@ static void kf_bfly4(
         const size_t m
         )
 {
-    kiss_fft_cpx *tw1,*tw2,*tw3;
+    const kiss_fft_cpx *tw1,*tw2,*tw3;
     kiss_fft_cpx scratch[6];
     size_t k=m;
     const size_t m2=2*m;
@@ -93,7 +93,7 @@ static void kf_bfly3(
 {
      size_t k=m;
      const size_t m2 = 2*m;
-     kiss_fft_cpx *tw1,*tw2;
+     const kiss_fft_cpx *tw1,*tw2;
      kiss_fft_cpx scratch[5];
      kiss_fft_cpx epi3;
      epi3 = st->twiddles[fstride*m];
@@ -138,8 +138,8 @@ static void kf_bfly5(
     kiss_fft_cpx *Fout0,*Fout1,*Fout2,*Fout3,*Fout4;
     int u;
     kiss_fft_cpx scratch[13];
-    kiss_fft_cpx * twiddles = st->twiddles;
-    kiss_fft_cpx *tw;
+    const kiss_fft_cpx * twiddles = st->twiddles;
+    const kiss_fft_cpx *tw;
     kiss_fft_cpx ya,yb;
     ya = twiddles[fstride*m];
     yb = twiddles[fstride*2*m];
@@ -199,7 +199,7 @@ static void kf_bfly_generic(
         )
 {
     int u,k,q1,q;
-    kiss_fft_cpx * twiddles = st->twiddles;
+    const kiss_fft_cpx * twiddles = st->twiddles;
     kiss_fft_cpx t;
     int Norig = st->nfft;
 
@@ -359,11 +359,12 @@ kiss_fft_cfg kiss_fft_alloc(int nfft,int inverse_fft,void * mem,size_t * lenmem 
         int i;
         st->nfft=nfft;
         st->inverse = inverse_fft;
-        st->twiddles = (kiss_fft_cpx*)(st + sizeof(struct kiss_fft_state));
+        kiss_fft_cpx* twiddles = (kiss_fft_cpx*)(st + sizeof(struct kiss_fft_state));
 
         for (i=0;i<nfft;++i) {
-            st->twiddles[i] = kiss_fft_get_twiddle(i, nfft, st->inverse);
+            twiddles[i] = kiss_fft_get_twiddle(i, nfft, st->inverse);
         }
+        st->twiddles = twiddles;
 
         kf_factor(nfft,st->factors);
     }
@@ -371,7 +372,7 @@ kiss_fft_cfg kiss_fft_alloc(int nfft,int inverse_fft,void * mem,size_t * lenmem 
 }
 
 
-kiss_fft_cfg kiss_fft_alloc_with_twiddles(int nfft, int inverse_fft, kiss_fft_cpx* twiddles, void * mem, size_t * lenmem)
+kiss_fft_cfg kiss_fft_alloc_with_twiddles(int nfft, int inverse_fft, const kiss_fft_cpx* twiddles, void * mem, size_t * lenmem)
 {
     kiss_fft_cfg st=NULL;
     size_t memneeded = sizeof(struct kiss_fft_state);

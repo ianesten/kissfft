@@ -13,7 +13,7 @@
 struct kiss_fftr_state{
     kiss_fft_cfg substate;
     kiss_fft_cpx * tmpbuf;
-    kiss_fft_cpx * super_twiddles;
+    const kiss_fft_cpx * super_twiddles;
 #ifdef USE_SIMD
     void * pad;
 #endif
@@ -57,17 +57,18 @@ kiss_fftr_cfg kiss_fftr_alloc(int nfft,int inverse_fft,void * mem,size_t * lenme
 
     st->substate = (kiss_fft_cfg) (st + 1); /*just beyond kiss_fftr_state struct */
     st->tmpbuf = (kiss_fft_cpx *) (((char *) st->substate) + subsize);
-    st->super_twiddles = st->tmpbuf + nfft;
+    kiss_fft_cpx* super_twiddles = st->tmpbuf + nfft;
     kiss_fft_alloc(nfft, inverse_fft, st->substate, &subsize);
 
     for (i = 0; i < nfft/2; ++i) {
-        st->super_twiddles[i] = kiss_fft_get_super_twiddle(i, nfft, inverse_fft);
+        super_twiddles[i] = kiss_fft_get_super_twiddle(i, nfft, inverse_fft);
     }
+    st->super_twiddles = super_twiddles;
     return st;
 }
 
-kiss_fftr_cfg kiss_fftr_alloc_with_twiddles(int nfft, int inverse_fft, kiss_fft_cpx* super_twiddles,
-                                            kiss_fft_cpx* substate_twiddles, void * mem, size_t * lenmem)
+kiss_fftr_cfg kiss_fftr_alloc_with_twiddles(int nfft, int inverse_fft, const kiss_fft_cpx* super_twiddles,
+                                            const kiss_fft_cpx* substate_twiddles, void * mem, size_t * lenmem)
 {
     int i;
     kiss_fftr_cfg st = NULL;
@@ -79,7 +80,7 @@ kiss_fftr_cfg kiss_fftr_alloc_with_twiddles(int nfft, int inverse_fft, kiss_fft_
     }
     nfft >>= 1;
 
-    kiss_fft_alloc (nfft, inverse_fft, NULL, &subsize);
+    kiss_fft_alloc_with_twiddles (nfft, inverse_fft, NULL, NULL, &subsize);
     memneeded = sizeof(struct kiss_fftr_state) + subsize + sizeof(kiss_fft_cpx) * nfft;
 
     if (lenmem == NULL) {
